@@ -456,14 +456,32 @@ function validateBreakingChangeFormat(pr: GitHubPr, _files: GitHubFile[]): TestR
   const title = pr.title;
   const body = pr.body;
   const result = new TestResult();
-  const re = /^BREAKING.*$/m;
-  const m = re.exec(body ?? '');
-  if (m) {
-    result.assessFailure(!m[0].startsWith('BREAKING CHANGE: '), `Breaking changes should be indicated by starting a line with 'BREAKING CHANGE: ', variations are not allowed. (found: '${m[0]}').`);
-    result.assessFailure(m[0].slice('BREAKING CHANGE:'.length).trim().length === 0, 'The description of the first breaking change should immediately follow the \'BREAKING CHANGE: \' clause.');
-    const titleRe = /^[a-z]+\([0-9a-z-_]+\)/;
-    result.assessFailure(!titleRe.exec(title), 'The title of this pull request must specify the module name that the first breaking change should be associated to.');
+  // First match any line starting with BREAKING to catch variations
+  const re = /^BREAKING.*$/mg;
+  let m;
+
+  while ((m = re.exec(body ?? '')) !== null) {
+    const line = m[0];
+    const standardFormat = line.startsWith('BREAKING CHANGE: ');
+    const moduleFormat = /^BREAKING CHANGE\([0-9a-z-_]+\): /.test(line);
+    
+    if (!standardFormat && !moduleFormat) {
+      result.assessFailure(true, 
+        `Breaking changes should be indicated by starting a line with either 'BREAKING CHANGE: ' or 'BREAKING CHANGE(module): ', variations are not allowed. (found: '${line}').`);
+    }
+
+    if (standardFormat) {
+      const titleRe = /^[a-z]+\([0-9a-z-_]+\)/;
+      result.assessFailure(!titleRe.exec(title), 
+        'The title of this pull request must specify a module name when including breaking changes.');
+    }
+    
+    // Check if there's immediate content after the marker
+    const hasContent = /^BREAKING CHANGE(?:\([0-9a-z-_]+\))?: +[^\r\n]/.test(line);
+    result.assessFailure(!hasContent, 
+      'The description of each breaking change should immediately follow the breaking change clause.');
   }
+  
   return result;
 }
 

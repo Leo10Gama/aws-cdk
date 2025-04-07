@@ -54,7 +54,7 @@ describe('breaking changes format', () => {
       },
     };
     const prLinter = configureMock(issue, undefined);
-    await expect(legacyValidatePullRequestTarget(prLinter)).rejects.toThrow(/'BREAKING CHANGE: ', variations are not allowed/);
+    await expect(legacyValidatePullRequestTarget(prLinter)).rejects.toThrow(/variations are not allowed/);
   });
 
   test('the first breaking change should immediately follow "BREAKING CHANGE:"', async () => {
@@ -69,7 +69,7 @@ describe('breaking changes format', () => {
       },
     };
     const prLinter = configureMock(issue, undefined);
-    await expect(legacyValidatePullRequestTarget(prLinter)).rejects.toThrow(/description of the first breaking change should immediately follow/);
+    await expect(legacyValidatePullRequestTarget(prLinter)).rejects.toThrow(/The description of each breaking change should immediately follow the breaking change clause/);
   });
 
   test('invalid title', async () => {
@@ -83,7 +83,7 @@ describe('breaking changes format', () => {
       },
     };
     const prLinter = configureMock(issue, undefined);
-    await expect(legacyValidatePullRequestTarget(prLinter)).rejects.toThrow(/The title of this pull request must specify the module name that the first breaking change should be associated to./);
+    await expect(legacyValidatePullRequestTarget(prLinter)).rejects.toThrow(/The title of this pull request must specify a module name when including breaking changes./);
   });
 
   test('valid title', async () => {
@@ -98,6 +98,35 @@ describe('breaking changes format', () => {
     };
     const prLinter = configureMock(issue, undefined);
     expect(legacyValidatePullRequestTarget(await prLinter)).resolves; // not throw
+  });
+
+  test('valid breaking change with module format', async () => {
+    const issue = {
+      number: 1,
+      title: 'chore(s3): some title',
+      body: 'BREAKING CHANGE(s3): this is a breaking change',
+      labels: [{ name: 'pr-linter/exempt-test' }, { name: 'pr-linter/exempt-readme' }],
+      user: {
+        login: 'author',
+      },
+    };
+    const prLinter = configureMock(issue, undefined);
+    expect(legacyValidatePullRequestTarget(await prLinter)).resolves; // not throw
+  });
+  
+  test('invalid breaking change with empty module format', async () => {
+    const issue = {
+      number: 1,
+      title: 'chore(s3): some title',
+      body: 'BREAKING CHANGE(s3): ',
+      labels: [{ name: 'pr-linter/exempt-test' }, { name: 'pr-linter/exempt-readme' }],
+      user: {
+        login: 'author',
+      }
+    };
+    const prLinter = configureMock(issue, undefined);
+    await expect(legacyValidatePullRequestTarget(prLinter))
+      .rejects.toThrow(/The description of each breaking change should immediately follow the breaking change clause./);
   });
 });
 
